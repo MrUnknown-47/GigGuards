@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://gigguards.onrender.com/api/v1";
+const API_BASE_URL = "http://gigguards-onrender.com/api/v1";
 
 class GigShieldAPI {
     /**
@@ -54,6 +54,14 @@ class GigShieldAPI {
     /** Trigger ML claim workflow via POST payload dictionary */
     static async triggerClaim(payload) {
         return this.request('/claims/trigger', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+
+    /** Submit photo evidence for GenAI agentic verification */
+    static async verifyEvidence(payload) {
+        return this.request('/claims/verify-evidence', {
             method: 'POST',
             body: JSON.stringify(payload)
         });

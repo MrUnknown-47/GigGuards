@@ -78,6 +78,8 @@ export default function WorkerDashboard() {
     const riskLevel = getRiskLevel(riskScore);
     const [showExplainability, setShowExplainability] = useState(false);
     const [isTriggering, setIsTriggering] = useState(false);
+    const [verifyingClaim, setVerifyingClaim] = useState(null);
+    const [verificationResult, setVerificationResult] = useState({});
     
     // Live ML trigger endpoint test
     const triggerClaim = async () => {
@@ -100,6 +102,28 @@ export default function WorkerDashboard() {
             alert("API connection failed.");
         } finally {
             setIsTriggering(false);
+        }
+    };
+
+    const handleUploadEvidence = async (claim) => {
+        setVerifyingClaim(claim.id);
+        try {
+            const { data, ok } = await GigShieldAPI.verifyEvidence({
+                claim_id: claim.id,
+                zone_id: worker.city,
+                disruption_type: claim.type,
+                image_url: "mock_image_data_uri"
+            });
+            if (ok) {
+                setVerificationResult(prev => ({
+                    ...prev,
+                    [claim.id]: data
+                }));
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setVerifyingClaim(null);
         }
     };
 
@@ -426,6 +450,29 @@ export default function WorkerDashboard() {
                                                                 <p>• Payout calculated: <span className="text-emerald-400 font-medium">₹{claim.payout}</span> based on your {tier} tier</p>
                                                                 <p>• Fraud check: <span className="text-emerald-400">{claim.status === 'flagged' ? 'Flagged for review' : 'Passed ✓'}</span></p>
                                                                 <p>• Processing time: <span className="text-white">&lt;30 seconds</span></p>
+                                                                
+                                                                {claim.status === 'flagged' && !verificationResult[claim.id] && (
+                                                                    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                                                                        <p className="text-amber-400 font-bold mb-2 flex items-center gap-2">⚠️ Quarantine Hold</p>
+                                                                        <p className="mb-3 text-gray-400 leading-tight">GPS anomaly detected. Please upload a photo of the disruption (e.g. flooded road) for instant AI Agent verification.</p>
+                                                                        <button 
+                                                                            onClick={() => handleUploadEvidence(claim)}
+                                                                            disabled={verifyingClaim === claim.id}
+                                                                            className="w-full py-2 bg-gradient-to-r from-primary-600 to-purple-600 rounded-lg text-white font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
+                                                                        >
+                                                                            {verifyingClaim === claim.id ? 'Agent Analyzing Photo...' : 'Upload Photo Evidence'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                {verificationResult[claim.id] && (
+                                                                    <div className={`mt-3 p-3 rounded-xl border ${verificationResult[claim.id].is_authentic ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                                                                        <p className="font-bold flex items-center gap-2 mb-1">
+                                                                            {verificationResult[claim.id].is_authentic ? '✅ AI Agent Verified Match' : '❌ AI Agent Rejected Match'}
+                                                                        </p>
+                                                                        <p className="text-[11px] opacity-90">{verificationResult[claim.id].explanation}</p>
+                                                                        <p className="text-[10px] uppercase tracking-widest mt-2 opacity-70">Confidence: {(verificationResult[claim.id].confidence_score * 100).toFixed(1)}%</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </motion.div>

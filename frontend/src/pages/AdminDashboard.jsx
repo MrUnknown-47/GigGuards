@@ -28,6 +28,7 @@ import {
     HiOutlineSignal,
     HiOutlineMapPin,
     HiOutlineArrowTrendingUp,
+    HiOutlineArrowsRightLeft
 } from 'react-icons/hi2';
 
 const fadeUp = {
@@ -142,7 +143,8 @@ export default function AdminDashboard() {
                         {[
                             { id: 'overview', label: 'Overview', icon: HiOutlineChartBarSquare },
                             { id: 'defense', label: 'Sentinel Defense', icon: HiOutlineShieldCheck },
-                            { id: 'workers', label: 'Network Nodes', icon: HiOutlineUserGroup }
+                            { id: 'workers', label: 'Network Nodes', icon: HiOutlineUserGroup },
+                            { id: 'b2b', label: 'B2B Integrations', icon: HiOutlineArrowsRightLeft }
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -437,6 +439,44 @@ export default function AdminDashboard() {
                                             })}
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* B2B TAB */}
+                    {activeTab === 'b2b' && (
+                        <motion.div
+                            key="b2b"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <div className="glass-card p-8 rounded-3xl border-white/5">
+                                <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                    <HiOutlineArrowsRightLeft className="w-5 h-5 text-primary-400" />
+                                    B2B Micro-Premium Reinsurance Pool
+                                </h3>
+                                <p className="text-gray-400 mb-6 font-medium text-sm">
+                                    Track micro-surcharges collected directly from consumer food delivery orders via our B2B Plugin API.
+                                </p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                    <div className="bg-white/5 border border-white/5 p-6 rounded-2xl flex flex-col items-center text-center">
+                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Total Pool Value</p>
+                                        <h4 className="text-3xl text-emerald-400 font-black">₹342,050</h4>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/5 p-6 rounded-2xl flex flex-col items-center text-center">
+                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Partner Integrations</p>
+                                        <h4 className="text-3xl text-white font-black">2 Active</h4>
+                                        <p className="text-gray-500 text-xs mt-1">Blinkit, Zepto</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/5 p-6 rounded-2xl flex flex-col items-center text-center">
+                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Avg Surcharge</p>
+                                        <h4 className="text-3xl text-primary-400 font-black">₹3.20</h4>
+                                        <p className="text-gray-500 text-xs mt-1">per order</p>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>

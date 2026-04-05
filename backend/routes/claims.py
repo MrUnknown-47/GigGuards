@@ -89,3 +89,35 @@ async def get_claim(claim_id: str):
     if not claim_data:
         raise HTTPException(status_code=404, detail="Claim not found")
     return Claim(**claim_data)
+
+from pydantic import BaseModel
+
+class EvidenceRequest(BaseModel):
+    claim_id: str
+    zone_id: str
+    disruption_type: str
+    image_url: str
+
+class EvidenceResponse(BaseModel):
+    is_authentic: bool
+    confidence_score: float
+    explanation: str
+
+@router.post("/verify-evidence", response_model=EvidenceResponse, summary="Agentic Vision Verification", description="Verifies claim evidence image via GenAI")
+async def verify_evidence(request: EvidenceRequest):
+    from services.vision_agent import mock_vision_evaluate_evidence
+    logger.info(f"Received evidence verification request for claim {request.claim_id}")
+    result = mock_vision_evaluate_evidence(
+        claim_id=request.claim_id,
+        zone_id=request.zone_id,
+        disruption_type=request.disruption_type,
+        image_url=request.image_url
+    )
+    # mock update claim status in db based on result
+    status = "approved" if result["is_authentic"] else "denied"
+    # we would update db.update_claim(claim_id, status=status)
+    return EvidenceResponse(
+        is_authentic=result["is_authentic"],
+        confidence_score=result["confidence_score"],
+        explanation=result["explanation"]
+    )
