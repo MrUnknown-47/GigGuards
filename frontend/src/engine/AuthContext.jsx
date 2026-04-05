@@ -9,14 +9,14 @@ const AuthContext = createContext(null);
 
 // Demo credentials
 const DEMO_USERS = {
-    'worker@gigshield.ai': {
+    'raj@gigguard.ai': {
         password: 'demo123',
         name: 'Raj Kumar',
         role: 'worker',
         avatar: null,
         city: 'Delhi',
     },
-    'admin@gigshield.ai': {
+    'admin@gigguard.ai': {
         password: 'demo123',
         name: 'Vikram Mehta',
         role: 'admin',

@@ -159,6 +159,33 @@ function reducer(state, action) {
             };
         }
 
+        case 'INJECT_ATTACK_CLAIMS': {
+            const attackClaims = action.payload.map(claimData => {
+                return generateClaim(claimData.workerId, claimData.type, {
+                    value: claimData.value,
+                    payout: claimData.payout,
+                    details: { description: claimData.description }
+                }, claimData.specialFlags);
+            });
+            
+            const updatedClaims = [...attackClaims, ...state.claims];
+            
+            // Generate notifications for simulated ring fraud / spoof attacks
+            const newNotifications = attackClaims.map((c, idx) => ({
+                id: Date.now() + idx,
+                type: 'warning',
+                title: '⚠️ Suspicious Claim Detected',
+                message: c.description || 'System anomaly flagged by Sentinel.',
+                timestamp: new Date().toLocaleTimeString(),
+            }));
+            
+            return {
+                ...state,
+                claims: updatedClaims,
+                notifications: [...newNotifications, ...state.notifications].slice(0, 50)
+            };
+        }
+
         default:
             return state;
     }
@@ -205,6 +232,19 @@ export function SimulationProvider({ children }) {
 
     const addActivity = useCallback((activity) => {
         dispatch({ type: 'ADD_ACTIVITY', payload: activity });
+    }, []);
+
+    const simulateSyndicateAttack = useCallback(() => {
+        const spoofWorkers = ['W001', 'W003', 'W005']; // Mock worker IDs to inject
+        const attackPayload = spoofWorkers.map((wId, i) => ({
+            workerId: wId,
+            type: 'rain',
+            value: 85,
+            payout: 2500,
+            description: 'Income loss due to severe rainfall',
+            specialFlags: { isSpoofAttack: i % 2 === 0, isRingFraudAttack: true }
+        }));
+        dispatch({ type: 'INJECT_ATTACK_CLAIMS', payload: attackPayload });
     }, []);
 
     // Demo mode auto-simulation
@@ -260,6 +300,7 @@ export function SimulationProvider({ children }) {
                 setSliders,
                 toggleDemoMode,
                 addActivity,
+                simulateSyndicateAttack,
             }}
         >
             {children}

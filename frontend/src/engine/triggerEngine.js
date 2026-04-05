@@ -1,5 +1,5 @@
 // ==========================================
-// GigShield AI — Trigger & Fraud Engine
+// GigShield AI — Trigger & Fraud AI Engine
 // ==========================================
 
 import { TRIGGER_TYPES } from './mockData';
@@ -39,12 +39,29 @@ export function calculateIncomeLoss(dailyEarning, hoursLost = 8) {
 }
 
 /**
- * Basic fraud detection
- * Flags suspicious patterns
+ * Advanced Multi-Signal Fraud Detection Engine
+ * Flags suspicious patterns (Frequency, Duplicate, Payout Limits, GPS Spoofing)
  */
 export function detectFraud(claims, workerId) {
     const workerClaims = claims.filter((c) => c.workerId === workerId);
     const flags = [];
+    let riskScore = 0;
+
+    // Is it a known simulated spoof attack claim?
+    const hasSpoofClaim = workerClaims.some(c => c.isSpoofAttack);
+    if (hasSpoofClaim) {
+        flags.push({
+            type: 'gps_spoofing',
+            severity: 'critical',
+            message: 'Location mismatch: IP geo differs from reported GPS by 15.4km',
+        });
+        flags.push({
+            type: 'device_sensor',
+            severity: 'high',
+            message: 'Device sensors static during reported movement',
+        });
+        riskScore += 85;
+    }
 
     // Flag 1: Too many claims in recent period (3+ in 7 days)
     const recentClaims = workerClaims.filter((c) => {
@@ -60,48 +77,65 @@ export function detectFraud(claims, workerId) {
             severity: 'high',
             message: `${recentClaims.length} claims in the last 7 days`,
         });
+        riskScore += 40;
     }
 
     // Flag 2: Duplicate trigger types on same day
     const dateTypeMap = {};
     workerClaims.forEach((c) => {
         const key = `${c.date}-${c.type}`;
-        if (dateTypeMap[key]) {
+        if (dateTypeMap[key] && !c.isSpoofAttack /* Ignore multiple mock attacks in count */ && !c.isRingFraudAttack) {
             flags.push({
                 type: 'duplicate',
                 severity: 'critical',
                 message: `Duplicate ${c.type} claim on ${c.date}`,
             });
+            riskScore += 60;
         }
         dateTypeMap[key] = true;
     });
 
+    // Is it part of a simulated Ring Fraud attack?
+    const hasRingFraud = workerClaims.some(c => c.isRingFraudAttack);
+    if (hasRingFraud) {
+        flags.push({
+            type: 'ring_fraud',
+            severity: 'critical',
+            message: 'Suspicious behavioral clustering: Multi-node temporal sync',
+        });
+        riskScore += 75;
+    }
+
     // Flag 3: Total payout exceeds threshold
     const totalPayout = workerClaims.reduce((sum, c) => sum + c.payout, 0);
-    if (totalPayout > 5000) {
+    if (totalPayout > 5000 && !hasSpoofClaim && !hasRingFraud) {
         flags.push({
             type: 'payout_limit',
             severity: 'medium',
             message: `Total payouts ₹${totalPayout} exceed ₹5000 threshold`,
         });
+        riskScore += 20;
     }
+
+    const clampedScore = Math.min(riskScore, 100);
 
     return {
         isFlagged: flags.length > 0,
         flags,
-        riskLevel: flags.length >= 2 ? 'high' : flags.length === 1 ? 'medium' : 'low',
+        score: clampedScore,
+        riskLevel: clampedScore >= 70 ? 'high' : clampedScore >= 30 ? 'medium' : 'low',
         totalClaims: workerClaims.length,
         totalPayout,
     };
 }
 
 /**
- * Generate a new claim from a trigger event
+ * Generate a new abstract claim from a trigger event
  */
-export function generateClaim(workerId, type, triggerResult) {
+export function generateClaim(workerId, type, triggerResult, specialFlags = {}) {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
-    const claimId = `CLM${String(Date.now()).slice(-6)}`;
+    const claimId = `CLM${String(Date.now()).slice(-6)}-${Math.floor(Math.random() * 100)}`;
 
     return {
         id: claimId,
@@ -110,7 +144,8 @@ export function generateClaim(workerId, type, triggerResult) {
         triggerValue: triggerResult.value || null,
         payout: triggerResult.payout,
         date: dateStr,
-        status: 'paid',
+        status: specialFlags.isSpoofAttack || specialFlags.isRingFraudAttack ? 'pending_review' : 'paid',
         description: triggerResult.details?.description || `Auto-triggered ${type} payout`,
+        ...specialFlags
     };
 }

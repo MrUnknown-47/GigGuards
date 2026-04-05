@@ -11,6 +11,7 @@ import { detectFraud } from '../engine/triggerEngine';
 import TierBadge from '../components/TierBadge';
 import AnimatedCounter from '../components/AnimatedCounter';
 import RiskHeatMap from "../components/RiskHeatMap"
+import FraudDefensePanel from '../components/FraudDefensePanel';
 import { HiOutlineMap } from "react-icons/hi2";
 import { MONTHLY_DATA, CITY_RISK_DATA } from '../engine/mockData';
 import {
@@ -50,10 +51,10 @@ const payoutDistribution = [
 const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="glass-card p-3 text-xs">
-                <p className="text-white font-medium">{label}</p>
+            <div className="glass-card p-3 text-xs border border-white/5 shadow-2xl backdrop-blur-xl">
+                <p className="text-white font-bold mb-1 opacity-80">{label}</p>
                 {payload.map((p, i) => (
-                    <p key={i} style={{ color: p.color || p.fill }}>
+                    <p key={i} style={{ color: p.color || p.fill }} className="font-medium">
                         {p.name}: {typeof p.value === 'number' && p.name !== 'Claims' ? '₹' : ''}{p.value}
                     </p>
                 ))}
@@ -67,6 +68,7 @@ export default function AdminDashboard() {
     const { workers, claims, totalPayouts, activityFeed, demoMode } = useSimulation();
 
     const [stats, setStats] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
         GigShieldAPI.getAdminStats()
@@ -117,326 +119,329 @@ export default function AdminDashboard() {
 
     return (
         <div className={`min-h-screen pb-12 px-4 ${demoMode ? 'pt-24' : 'pt-20'}`}>
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
-                >
-                    <h1 className="text-2xl font-bold text-white">
-                        Admin <span className="gradient-text">Dashboard</span>
-                    </h1>
-                    <p className="text-gray-400 text-sm mt-1">
-                        Platform overview and worker management
-                    </p>
-                </motion.div>
+            <div className="max-w-[1400px] mx-auto">
+                {/* Header & Tabs */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                    >
+                        <h1 className="text-3xl font-black text-white tracking-tight mb-2">
+                            Platform <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-purple-400">Ledger</span>
+                        </h1>
+                        <p className="text-gray-400 text-sm font-medium">
+                            Real-time risk distribution and system oversight
+                        </p>
+                    </motion.div>
+                    
+                    <motion.div 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex gap-2 p-1.5 bg-surface-container-high/50 rounded-2xl border border-white/5 backdrop-blur-md"
+                    >
+                        {[
+                            { id: 'overview', label: 'Overview', icon: HiOutlineChartBarSquare },
+                            { id: 'defense', label: 'Sentinel Defense', icon: HiOutlineShieldCheck },
+                            { id: 'workers', label: 'Network Nodes', icon: HiOutlineUserGroup }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                                    activeTab === tab.id 
+                                        ? 'bg-primary-500 shadow-lg shadow-primary-500/20 text-white'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                            >
+                                <tab.icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </motion.div>
+                </div>
 
-                {/* Stat Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {adminStats.map((stat, i) => (
+                <AnimatePresence mode="wait">
+                    {/* OVERVIEW TAB */}
+                    {activeTab === 'overview' && (
                         <motion.div
-                            key={i}
-                            initial="hidden"
-                            animate="visible"
-                            variants={fadeUp}
-                            custom={i}
-                            className="stat-card group hover:scale-[1.02] transition-transform duration-300"
+                            key="overview"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
                         >
-                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
-                                <stat.icon className="w-5 h-5 text-white" />
-                            </div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                            <div className="text-2xl font-bold text-white mt-1">
-                                <AnimatedCounter value={stat.value} prefix={stat.prefix || ''} duration={1.5} />
-                            </div>
-                            <p className={`text-xs mt-1 ${stat.change.includes('+') ? 'text-emerald-400' : stat.change === 'All clear' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {stat.change}
-                            </p>
-                        </motion.div>
-                    ))}
-                </div>
-
-                {/* Charts Grid */}
-                <div className="grid lg:grid-cols-3 gap-6 mb-8">
-                    {/* Monthly Claims Bar Chart */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="lg:col-span-2 glass-card p-6"
-                    >
-                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                            <HiOutlineChartBarSquare className="w-5 h-5 text-primary-400" />
-                            Monthly Claims & Payouts
-                        </h3>
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={MONTHLY_DATA}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                                    <YAxis stroke="#6b7280" fontSize={12} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="payouts" fill="#6C2BD9" radius={[4, 4, 0, 0]} name="Payouts" />
-                                    <Bar dataKey="premiums" fill="#10B981" radius={[4, 4, 0, 0]} name="Premiums" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </motion.div>
-
-                    {/* Payout Distribution Pie */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="glass-card p-6"
-                    >
-                        <h3 className="font-semibold text-white mb-4">Payout Distribution</h3>
-                        <div className="h-48">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={payoutDistribution}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={50}
-                                        outerRadius={75}
-                                        paddingAngle={4}
-                                        dataKey="value"
-                                    >
-                                        {payoutDistribution.map((entry, index) => (
-                                            <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                            {payoutDistribution.map((entry, i) => (
-                                <div key={i} className="flex items-center gap-1.5 text-xs text-gray-400">
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
-                                    {entry.name} ({entry.value}%)
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* City Risk + Fraud + Activity Grid */}
-                <div className="grid lg:grid-cols-3 gap-6 mb-8">
-                    {/* City-wise Risk Distribution */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.45 }}
-                        className="glass-card p-6"
-                    >
-                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                            <HiOutlineMapPin className="w-5 h-5 text-primary-400" />
-                            City Risk Distribution
-                        </h3>
-                        <div className="space-y-3">
-                            {CITY_RISK_DATA.map((city, i) => (
-                                <div key={i}>
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-gray-300">{city.city}</span>
-                                        <span className={`font-medium ${city.risk > 0.7 ? 'text-red-400' :
-                                            city.risk > 0.5 ? 'text-amber-400' : 'text-emerald-400'
-                                            }`}>{(city.risk * 100).toFixed(0)}%</span>
-                                    </div>
-                                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${city.risk * 100}%` }}
-                                            transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
-                                            className={`h-full rounded-full ${city.risk > 0.7 ? 'bg-gradient-to-r from-red-500 to-pink-500' :
-                                                city.risk > 0.5 ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
-                                                    'bg-gradient-to-r from-emerald-500 to-teal-500'
-                                                }`}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
-                                        <span>{city.workers.toLocaleString()} workers</span>
-                                        <span>₹{(city.payouts / 1000).toFixed(0)}K payouts</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-
-                    {/* Fraud Detection Panel */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="glass-card p-6"
-                    >
-                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                            <HiOutlineExclamationTriangle className="w-5 h-5 text-red-400" />
-                            Fraud Detection
-                        </h3>
-                        <div className="space-y-3">
-                            {workers.map((w) => {
-                                const fraud = detectFraud(claims, w.id);
-                                if (!fraud.isFlagged) return null;
-                                return (
-                                    <div key={w.id} className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white">
-                                                {w.name.charAt(0)}
-                                            </div>
-                                            <span className="text-xs font-medium text-white">{w.name}</span>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium
-                                                ${fraud.riskLevel === 'high' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                {fraud.riskLevel.toUpperCase()}
-                                            </span>
-                                        </div>
-                                        {fraud.flags.map((flag, fi) => (
-                                            <p key={fi} className="text-[11px] text-gray-400 ml-8">⚠ {flag.message}</p>
-                                        ))}
-                                    </div>
-                                );
-                            })}
-                            {fraudFlags === 0 && (
-                                <div className="p-6 text-center">
-                                    <HiOutlineShieldCheck className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                                    <p className="text-xs text-emerald-400 font-medium">All Clear</p>
-                                    <p className="text-[11px] text-gray-500 mt-1">No fraud flags detected</p>
-                                </div>
-                            )}
-                        </div>
-                    </motion.div>
-
-                    {/* Live Trigger Logs */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.55 }}
-                        className="glass-card p-6"
-                    >
-                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                            <HiOutlineSignal className="w-5 h-5 text-primary-400" />
-                            Live Trigger Logs
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        </h3>
-                        <div className="space-y-2 max-h-72 overflow-y-auto">
-                            <AnimatePresence initial={false}>
-                                {activityFeed.slice(0, 10).map((event) => (
+                            {/* Stat Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                {adminStats.map((stat, i) => (
                                     <motion.div
-                                        key={event.id}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        className={`p-2.5 rounded-lg text-xs ${event.isNew ? 'bg-primary-500/10 border border-primary-500/20' : 'bg-white/5'
-                                            }`}
+                                        key={i}
+                                        initial="hidden"
+                                        animate="visible"
+                                        variants={fadeUp}
+                                        custom={i}
+                                        className="glass-card p-6 rounded-3xl border-white/5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
                                     >
-                                        <p className="text-gray-300 truncate">{event.message}</p>
-                                        <div className="flex items-center justify-between mt-1">
-                                            <span className="text-[10px] text-gray-500">{event.timestamp}</span>
-                                            {event.payout && (
-                                                <span className="text-[10px] font-medium text-emerald-400">₹{event.payout}</span>
-                                            )}
+                                        <div className={`absolute -top-12 -right-12 w-24 h-24 bg-gradient-to-br ${stat.color} rounded-full opacity-20 blur-2xl group-hover:opacity-40 transition-opacity`}></div>
+                                        <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-3">{stat.label}</p>
+                                        <div className="text-3xl font-headline font-black text-white mb-3">
+                                            <AnimatedCounter value={stat.value} prefix={stat.prefix || ''} duration={1.5} />
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 mt-auto">
+                                            <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                                                <stat.icon className="w-4 h-4 text-white" />
+                                            </div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${stat.change.includes('+') ? 'text-emerald-400' : stat.change === 'All clear' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {stat.change}
+                                            </p>
                                         </div>
                                     </motion.div>
                                 ))}
-                            </AnimatePresence>
-                        </div>
-                    </motion.div>
-                </div>
+                            </div>
 
-                {/* Disaster Risk Heatmap */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.58 }}
-                    className="glass-card p-6 mb-8"
-                >
-                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                        <HiOutlineMap className="w-5 h-5 text-primary-400" />
-                        Disaster Risk Heatmap
-                    </h3>
+                            {/* Charts Grid */}
+                            <div className="grid lg:grid-cols-3 gap-6 mb-8">
+                                {/* Monthly Claims Bar Chart */}
+                                <div className="lg:col-span-2 glass-card p-8 rounded-3xl border-white/5">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-white flex items-center gap-2">
+                                            <HiOutlineChartBarSquare className="w-5 h-5 text-primary-400" />
+                                            Monthly Yields & Payouts
+                                        </h3>
+                                    </div>
+                                    <div className="h-72">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={MONTHLY_DATA} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                                <XAxis dataKey="month" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                                                <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val/1000}k`} />
+                                                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} content={<CustomTooltip />} />
+                                                <Bar dataKey="payouts" fill="url(#colorPayouts)" radius={[6, 6, 0, 0]} name="Payouts" barSize={32} />
+                                                <Bar dataKey="premiums" fill="url(#colorPremiums)" radius={[6, 6, 0, 0]} name="Premiums" barSize={32} />
+                                                
+                                                <defs>
+                                                    <linearGradient id="colorPayouts" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
+                                                        <stop offset="95%" stopColor="#6C2BD9" stopOpacity={0.9}/>
+                                                    </linearGradient>
+                                                    <linearGradient id="colorPremiums" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.9}/>
+                                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.9}/>
+                                                    </linearGradient>
+                                                </defs>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
 
-                    <div className="h-[420px] rounded-xl overflow-hidden">
-                        <RiskHeatMap />
-                    </div>
-
-                    <p className="text-xs text-gray-400 mt-3">
-                        AI-powered map showing disruption risk zones using weather, AQI, traffic,
-                        and historical disaster data.
-                    </p>
-                </motion.div>
-
-                {/* Workers Table */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className="glass-card p-6 overflow-hidden"
-                >
-                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                        <HiOutlineTableCells className="w-5 h-5 text-primary-400" />
-                        Worker Registry
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-white/10">
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Worker</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">City</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Platform</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Daily Earn</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Rating</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Tier</th>
-                                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Fraud</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {workers.map((w, i) => {
-                                    const fraud = detectFraud(claims, w.id);
-                                    return (
-                                        <motion.tr
-                                            key={w.id}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.05 * i }}
-                                            className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                                        >
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-purple-400 flex items-center justify-center text-xs font-bold text-white">
-                                                        {w.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-white font-medium">{w.name}</p>
-                                                        <p className="text-xs text-gray-500">{w.id}</p>
-                                                    </div>
+                                {/* Payout Distribution Pie */}
+                                <div className="glass-card p-8 rounded-3xl border-white/5 flex flex-col">
+                                    <h3 className="font-bold text-white mb-6">Payout Distribution</h3>
+                                    <div className="h-48 flex-1">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={payoutDistribution}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={60}
+                                                    outerRadius={85}
+                                                    paddingAngle={6}
+                                                    dataKey="value"
+                                                    stroke="none"
+                                                >
+                                                    {payoutDistribution.map((entry, index) => (
+                                                        <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
+                                        {payoutDistribution.map((entry, i) => (
+                                            <div key={i} className="flex flex-col gap-1 p-3 rounded-2xl bg-white/5 border border-white/5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
+                                                    <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">{entry.name}</span>
                                                 </div>
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-300">{w.city}</td>
-                                            <td className="py-3 px-4 text-gray-300">{w.platform}</td>
-                                            <td className="py-3 px-4 text-white font-medium">₹{w.dailyEarning}</td>
-                                            <td className="py-3 px-4">
-                                                <span className="text-yellow-400">★</span> {w.rating}
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <TierBadge tier={w.tier} size="sm" />
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-                                                    ${fraud.isFlagged
-                                                        ? 'bg-red-500/20 text-red-400'
-                                                        : 'bg-emerald-500/20 text-emerald-400'
-                                                    }`}>
-                                                    {fraud.isFlagged ? `${fraud.flags.length} flags` : 'Clear'}
-                                                </span>
-                                            </td>
-                                        </motion.tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </motion.div>
+                                                <span className="text-sm font-bold text-white pl-4.5">{entry.value}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid lg:grid-cols-2 gap-6">
+                                {/* City-wise Risk Distribution */}
+                                <div className="glass-card p-8 rounded-3xl border-white/5">
+                                    <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                        <HiOutlineMapPin className="w-5 h-5 text-primary-400" />
+                                        City Risk Distribution
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {CITY_RISK_DATA.slice(0, 5).map((city, i) => (
+                                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-white font-bold text-sm tracking-wide">{city.city}</span>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${city.risk > 0.7 ? 'bg-red-500/20 text-red-400' :
+                                                        city.risk > 0.5 ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+                                                        }`}>{(city.risk * 100).toFixed(0)}% Risk</span>
+                                                </div>
+                                                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                                                    <motion.div
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${city.risk * 100}%` }}
+                                                        transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
+                                                        className={`h-full rounded-full ${city.risk > 0.7 ? 'bg-gradient-to-r from-red-500 to-pink-500' :
+                                                            city.risk > 0.5 ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
+                                                                'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                                            }`}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between text-[10px] text-gray-400 font-medium">
+                                                    <span>{city.workers.toLocaleString()} Active Nodes</span>
+                                                    <span>₹{(city.payouts / 1000).toFixed(0)}K Total Yield</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Disaster Risk Heatmap */}
+                                <div className="glass-card p-8 rounded-3xl border-white/5 flex flex-col">
+                                    <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                        <HiOutlineMap className="w-5 h-5 text-primary-400" />
+                                        Disaster Risk Heatmap
+                                    </h3>
+                                    <div className="flex-1 h-[340px] rounded-2xl overflow-hidden border border-white/10 relative">
+                                        <RiskHeatMap />
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* DEFENSE TAB */}
+                    {activeTab === 'defense' && (
+                        <motion.div
+                            key="defense"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="space-y-6"
+                        >
+                            <FraudDefensePanel />
+
+                            {/* Live Trigger Logs Inside Defense for context */}
+                            <div className="glass-card p-8 rounded-3xl border-white/5">
+                                <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                    <HiOutlineSignal className="w-5 h-5 text-primary-400" />
+                                    Live Event Protocol
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] ml-2" />
+                                </h3>
+                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    <AnimatePresence initial={false}>
+                                        {activityFeed.slice(0, 15).map((event) => (
+                                            <motion.div
+                                                key={event.id}
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                className={`p-4 rounded-2xl border ${event.isNew ? 'bg-primary-500/10 border-primary-500/20 shadow-lg shadow-primary-500/5' : 'bg-white/5 border-white/5'
+                                                    }`}
+                                            >
+                                                <p className="text-gray-200 text-sm font-medium truncate">{event.message}</p>
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <span className="text-[10px] text-gray-500 font-black tracking-widest">{event.timestamp}</span>
+                                                    {event.payout && (
+                                                        <span className="text-xs font-black text-emerald-400 px-2 py-0.5 bg-emerald-500/10 rounded">₹{event.payout}</span>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* WORKERS TAB */}
+                    {activeTab === 'workers' && (
+                        <motion.div
+                            key="workers"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <div className="glass-card p-8 rounded-3xl border-white/5 overflow-hidden">
+                                <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                    <HiOutlineTableCells className="w-5 h-5 text-primary-400" />
+                                    Worker Ledger Master
+                                </h3>
+                                <div className="overflow-x-auto rounded-xl border border-white/5">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-surface-container-high/50 border-b border-white/10">
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Worker Node</th>
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Geo Zone</th>
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Platform</th>
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Daily Earn</th>
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Reputation</th>
+                                                <th className="text-left py-4 px-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {workers.map((w, i) => {
+                                                const fraud = detectFraud(claims, w.id);
+                                                return (
+                                                    <motion.tr
+                                                        key={w.id}
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.05 * i }}
+                                                        className="border-b border-white/5 hover:bg-white/5 transition-colors group"
+                                                    >
+                                                        <td className="py-4 px-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-sm font-black text-white shadow-lg group-hover:scale-110 transition-transform">
+                                                                    {w.name.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-white font-bold tracking-tight">{w.name}</p>
+                                                                    <p className="text-[10px] tracking-widest uppercase text-gray-500 font-medium mt-0.5">{w.id}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-6 text-gray-300 font-medium">{w.city}</td>
+                                                        <td className="py-4 px-6">
+                                                            <span className="px-3 py-1 bg-white/5 rounded-lg text-xs font-semibold text-gray-300 border border-white/10">
+                                                                {w.platform}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 px-6 text-white font-bold">₹{w.dailyEarning}</td>
+                                                        <td className="py-4 px-6">
+                                                            <TierBadge tier={w.tier} size="sm" />
+                                                        </td>
+                                                        <td className="py-4 px-6">
+                                                            <span className={`text-[10px] px-3 py-1 rounded-lg font-black uppercase tracking-widest border
+                                                                ${fraud.isFlagged
+                                                                    ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                                }`}>
+                                                                {fraud.isFlagged ? `Flagged (${fraud.score}/100)` : 'Secure'}
+                                                            </span>
+                                                        </td>
+                                                    </motion.tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

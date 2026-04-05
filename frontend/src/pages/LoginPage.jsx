@@ -41,10 +41,10 @@ export default function LoginPage() {
     const fillDemoCredentials = (type) => {
         clearError();
         if (type === 'worker') {
-            setEmail('worker@gigshield.ai');
+            setEmail('raj@gigguard.ai');
             setPassword('demo123');
         } else {
-            setEmail('admin@gigshield.ai');
+            setEmail('admin@gigguard.ai');
             setPassword('demo123');
         }
     };

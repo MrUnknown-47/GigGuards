@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://gigguards.onrender.com";
+const API_BASE_URL = "https://gigguards.onrender.com/api/v1";
 
 class GigShieldAPI {
     /**

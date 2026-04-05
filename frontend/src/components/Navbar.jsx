@@ -19,7 +19,7 @@ import {
 const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/dashboard', label: 'Dashboard' },
-    // { path: '/admin', label: 'Admin' },
+    { path: '/admin', label: 'Admin' },
     { path: '/buy-policy', label: 'Buy Policy' },
     { path: '/claims', label: 'Claims' },
 ];

@@ -25,8 +25,11 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="min-h-screen bg-dark-500">
@@ -35,25 +38,32 @@ function AppContent() {
       {isAuthenticated && <NotificationToast />}
       <main>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={
-            <ProtectedRoute><LandingPage /></ProtectedRoute>
-          } />
-          <Route path="/register" element={
-            <ProtectedRoute><RegisterPage /></ProtectedRoute>
-          } />
-          <Route path="/dashboard" element={
-            <ProtectedRoute><WorkerDashboard /></ProtectedRoute>
-          } />
+          <Route path="/" element={<LandingPage />} />
+
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />}
+          />
+
+          <Route path="/register" element={<RegisterPage />} />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <WorkerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/admin" element={
             <ProtectedRoute><AdminDashboard /></ProtectedRoute>
           } />
-          <Route path="/buy-policy" element={
-            <ProtectedRoute><BuyPolicyPage /></ProtectedRoute>
-          } />
-          <Route path="/claims" element={
-            <ProtectedRoute><ClaimHistory /></ProtectedRoute>
-          } />
+
+          <Route path="/buy-policy" element={<ProtectedRoute><BuyPolicyPage /></ProtectedRoute>} />
+
+          <Route path="/claims" element={<ProtectedRoute><ClaimHistory /></ProtectedRoute>} />
+
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
