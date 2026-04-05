@@ -63,7 +63,7 @@ async def verify_worker(worker_id: str):
         return MOCK_VERIFIED_WORKERS[worker_id]
         
     return VerifiedWorkerResponse(
-        name=f"Demo Worker {worker_id[-4:] if len(worker_id) > 4 else worker_id}",
+        name=f"Raj Kumar 12345",
         platform="Zepto",
         city="Mumbai",
         daily_income=1000.0,

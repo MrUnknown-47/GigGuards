@@ -81,7 +81,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://gigguard.vercel.app"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
