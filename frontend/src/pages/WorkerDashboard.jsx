@@ -57,11 +57,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function WorkerDashboard() {
     const { worker: defaultWorkerObj, riskScore, premium, tier, claims, totalPayouts, activityFeed, aiPredictions, demoMode } = useSimulation();
-    
+
     // Check local storage for dynamic API verified worker profile, otherwise fallback to static mock mapping
     const storedProfile = localStorage.getItem('verifiedWorkerProfile');
     let worker = defaultWorkerObj;
-    
+
     if (storedProfile) {
         try {
             worker = JSON.parse(storedProfile);
@@ -80,7 +80,7 @@ export default function WorkerDashboard() {
     const [isTriggering, setIsTriggering] = useState(false);
     const [verifyingClaim, setVerifyingClaim] = useState(null);
     const [verificationResult, setVerificationResult] = useState({});
-    
+
     // Live ML trigger endpoint test
     const triggerClaim = async () => {
         setIsTriggering(true);
@@ -91,9 +91,9 @@ export default function WorkerDashboard() {
                 aqi: 250,
                 traffic: 90
             });
-            
+
             if (ok) {
-                alert(`Payout Verified: ₹${data.payout_amount}\nTrigger: ${data.trigger_reason}`);
+                alert(`Payout Verified: ₹${data.final_payout}\nTrigger: ${data.trigger_reason}\nFraud Level: ${data.fraud_check?.level}\nTrust Score: ${data.trust_score}`);
             } else {
                 alert(`Claim Rejected or Failed: ${data.message || 'Fraud detected / Unmet param'}`);
             }
@@ -195,7 +195,7 @@ export default function WorkerDashboard() {
                             </p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <motion.button 
+                            <motion.button
                                 onClick={triggerClaim}
                                 disabled={isTriggering}
                                 className={`px-4 py-2 border rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${isTriggering ? 'bg-primary-500/20 border-primary-500/20 text-primary-500/50 cursor-wait' : 'bg-primary-500/10 border-primary-500/30 text-primary-400 hover:bg-primary-500/20 hover:scale-[1.02]'}`}
@@ -327,7 +327,7 @@ export default function WorkerDashboard() {
                                                 animate={{ width: `${factor.probability}%` }}
                                                 transition={{ duration: 1, delay: 0.5 + i * 0.2 }}
                                                 className={`h-full rounded-full ${factor.impact === 'high' ? 'bg-red-500' :
-                                                        factor.impact === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                                                    factor.impact === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
                                                     }`}
                                             />
                                         </div>
@@ -443,19 +443,17 @@ export default function WorkerDashboard() {
                                                                 <span className="text-xs font-semibold text-primary-300">Why this payout?</span>
                                                             </div>
                                                             <div className="space-y-2 text-xs text-gray-400">
-                                                                <p>• <span className="text-white">{trigger?.label}</span> event detected at {claim.date}</p>
-                                                                {claim.triggerValue && (
-                                                                    <p>• Trigger value: <span className="text-white">{claim.triggerValue}{claim.type === 'rain' ? 'mm' : ''}</span> (threshold: {claim.type === 'rain' ? '60mm' : '400 AQI'})</p>
-                                                                )}
-                                                                <p>• Payout calculated: <span className="text-emerald-400 font-medium">₹{claim.payout}</span> based on your {tier} tier</p>
-                                                                <p>• Fraud check: <span className="text-emerald-400">{claim.status === 'flagged' ? 'Flagged for review' : 'Passed ✓'}</span></p>
-                                                                <p>• Processing time: <span className="text-white">&lt;30 seconds</span></p>
-                                                                
+                                                                <p>💰 Payout Verified: <span className="text-emerald-400 font-bold">₹{claim.payout}</span></p>
+                                                                <p>⚡ Trigger: <span className="text-white">{claim.triggerReason}</span></p>
+                                                                <p>🛡 Fraud Level: <span className={claim.fraudLevel === 'low' ? 'text-emerald-400' : 'text-amber-400'}>{claim.fraudLevel}</span></p>
+                                                                <p>⭐ Trust Score: <span className="text-primary-400 font-medium">{claim.trustScore}</span></p>
+                                                                <p>⏱ Processing time: <span className="text-white">&lt;30 seconds</span></p>
+
                                                                 {claim.status === 'flagged' && !verificationResult[claim.id] && (
                                                                     <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10">
                                                                         <p className="text-amber-400 font-bold mb-2 flex items-center gap-2">⚠️ Quarantine Hold</p>
                                                                         <p className="mb-3 text-gray-400 leading-tight">GPS anomaly detected. Please upload a photo of the disruption (e.g. flooded road) for instant AI Agent verification.</p>
-                                                                        <button 
+                                                                        <button
                                                                             onClick={() => handleUploadEvidence(claim)}
                                                                             disabled={verifyingClaim === claim.id}
                                                                             className="w-full py-2 bg-gradient-to-r from-primary-600 to-purple-600 rounded-lg text-white font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"

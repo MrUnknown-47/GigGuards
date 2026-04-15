@@ -73,10 +73,18 @@ class TriggerSimulationRequest(BaseModel):
     aqi: float = Field(..., example=410.0, description="Air quality index")
     traffic: int = Field(..., example=95, description="Traffic congestion percentage")
 
+class FraudCheckResult(BaseModel):
+    level: str = Field(..., example="low")
+
 class TriggerSimulationResponse(BaseModel):
-    status: str = Field(..., example="payout_approved", description="The resolution flag of the simulation engine")
-    payout_amount: float = Field(..., example=1200.0, description="Calculated amount to be disbursed")
-    trigger_reason: str = Field(..., example="Parametric trigger threshold strictly met", description="Justification log")
+    status: str = Field(..., example="approved", description="The resolution flag of the simulation engine")
+    original_loss: float = Field(..., example=800.0, description="Calculated original loss before deductible and cap")
+    deductible: float = Field(..., example=100.0, description="Deductible applied to original loss")
+    final_payout: float = Field(..., example=700.0, description="Final calculated amount to be disbursed")
+    cap_applied: bool = Field(..., example=False, description="Whether the max coverage cap was applied")
+    fraud_check: FraudCheckResult = Field(..., description="Fraud analysis outcome")
+    trust_score: int = Field(..., example=85, description="Gig worker trust score")
+    reason: Optional[str] = Field(None, example="Heavy rainfall detected", description="Justification log")
 
 # ---------------------------------------------------------
 # Admin & Heatmaps
@@ -93,3 +101,17 @@ class AdminStatsResponse(BaseModel):
     total_revenue: float
     fraud_flags: int
     payout_distribution: PayoutDistribution
+
+class HeatmapPoint(BaseModel):
+    lat: float = Field(..., example=19.07)
+    lon: float = Field(..., example=72.87)
+    risk: str = Field(..., example="high")
+
+class PredictionRequest(BaseModel):
+    city: str = Field(..., example="Mumbai")
+    rain_probability: float = Field(..., example=75.0, description="Probability of rain for next day in percentage")
+
+class PredictionResponse(BaseModel):
+    has_alert: bool = Field(..., example=True)
+    alert_message: Optional[str] = Field(None, example="Heavy rain expected tomorrow. Estimated income protection: ₹700")
+    estimated_protection: float = Field(0.0, example=700.0)

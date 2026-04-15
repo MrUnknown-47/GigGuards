@@ -20,7 +20,8 @@ async def submit_claim(claim: ClaimCreate):
     claim_id = str(uuid.uuid4())
     claim_dict = claim.dict()
     
-    fraud_prob = fraud_detector.detect_fraud(claim_dict)
+    fraud_result = fraud_detector.detect_fraud(claim_dict)
+    fraud_prob = fraud_result["fraud_score"]
     trigger_met = trigger_engine.evaluate_trigger(policy_data, claim_dict)
     
     is_approved = fraud_prob < 0.2 and trigger_met
@@ -40,46 +41,105 @@ async def submit_claim(claim: ClaimCreate):
 @router.post("/trigger", response_model=TriggerSimulationResponse, summary="Simulate Trigger", description="Run a parametric trigger simulation based on incoming live data.")
 async def simulate_trigger(request: TriggerSimulationRequest):
     logger.info(f"Trigger simulation requested with payload: {request.dict()}")
+    
+    # 3. Minimum Trigger Threshold
+    if request.rainfall <= 60.0 and request.aqi <= 400.0:
+        logger.info("Trigger conditions not met. Rainfall <= 60 and AQI <= 400.")
+        return TriggerSimulationResponse(
+            status="denied",
+            original_loss=0.0,
+            deductible=0.0,
+            final_payout=0.0,
+            cap_applied=False,
+            fraud_check={"level": "low"},
+            trust_score=85,
+            reason="Trigger conditions not met (Rainfall <= 60 and AQI <= 400)"
+        )
+
     base_daily_income = 1200 
-    base_orders_today= 50
-    base_hours_worked=10
+    base_orders_today = 50
+    base_hours_worked = 10
+    
     estimated_loss = predict_income_loss(
         daily_income=request.daily_income,
-        orders_today = base_orders_today,
-        hours_worked = base_hours_worked,
+        orders_today=base_orders_today,
+        hours_worked=base_hours_worked,
         rainfall=request.rainfall,
         aqi=request.aqi,
         traffic=request.traffic,
         city=1
     )
     
-    fraud_prob = detect_fraud(
-        claim_frequency=1,
-        gps_jump=5.0, 
-        weather_match=1.0 if request.rainfall > 10.0 else 0.5
-    )
+    # Run full comprehensive fraud engine
+    simulated_claim_data = {
+        "amount_requested": estimated_loss,
+        "recent_claims_count": 1,
+        "gps_jump_km": 10,
+        "weather_match": 1,
+        "device_motion": 1,
+        "session_hours": 5,
+        "calculated_speed": 40.0,
+        "worker_history": {
+            "past_fraud_flags": 0,
+            "clean_history_count": 5
+        }
+    }
+    fraud_result = fraud_detector.detect_fraud(simulated_claim_data)
+    fraud_level = fraud_result["level"]
+    trust_score = fraud_result.get("trust_evaluation", {}).get("trust_score", 85)
     
-    if fraud_prob >= 0.3:
+    if fraud_result["fraud_score"] >= 0.3:
         logger.warning("Trigger simulation flagged for potential fraud.")
         return TriggerSimulationResponse(
             status="fraud_flagged",
-            payout_amount=0.0,
-            trigger_reason="Suspicious activity detected"
+            original_loss=round(estimated_loss, 2),
+            deductible=0.0,
+            final_payout=0.0,
+            cap_applied=False,
+            fraud_check={"level": fraud_level},
+            trust_score=trust_score,
+            reason="Suspicious activity detected"
         )
         
-    if estimated_loss > 0:
-        logger.info(f"Trigger simulation approved payout of {estimated_loss}")
+    original_loss = round(estimated_loss, 2)
+    if original_loss > 0:
+        # 2. Deductible logic
+        deductible = 100.0
+        loss_after_deductible = max(0.0, original_loss - deductible)
+        
+        # 1. Coverage Cap logic
+        cap_applied = False
+        if loss_after_deductible > 1000.0:
+            final_payout = 1000.0
+            cap_applied = True
+        else:
+            final_payout = loss_after_deductible
+            
+        logger.info(f"Trigger simulation approved final payout of {final_payout}")
+        
+        reason_msg = "Heavy rainfall detected" if request.rainfall > 60.0 else "High AQI disruption detected"
+        
         return TriggerSimulationResponse(
-            status="payout_approved",
-            payout_amount=round(estimated_loss, 2),
-            trigger_reason="Parametric trigger threshold met"
+            status="approved",
+            original_loss=original_loss,
+            deductible=deductible,
+            final_payout=round(final_payout, 2),
+            cap_applied=cap_applied,
+            fraud_check={"level": fraud_level},
+            trust_score=trust_score,
+            reason=reason_msg
         )
         
-    logger.info("Trigger conditions not met.")
+    logger.info("Estimated loss is not greater than 0.")
     return TriggerSimulationResponse(
         status="denied",
-        payout_amount=0.0,
-        trigger_reason="Trigger conditions not met"
+        original_loss=0.0,
+        deductible=100.0,
+        final_payout=0.0,
+        cap_applied=False,
+        fraud_check={"level": fraud_level},
+        trust_score=trust_score,
+        reason="No estimated loss"
     )
 
 @router.get("/{claim_id}", response_model=Claim, summary="Get Claim", description="Retrieves an existing claim by ID.")

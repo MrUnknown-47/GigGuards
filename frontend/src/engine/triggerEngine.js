@@ -129,23 +129,27 @@ export function detectFraud(claims, workerId) {
     };
 }
 
-/**
- * Generate a new abstract claim from a trigger event
- */
-export function generateClaim(workerId, type, triggerResult, specialFlags = {}) {
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const claimId = `CLM${String(Date.now()).slice(-6)}-${Math.floor(Math.random() * 100)}`;
+export function generateClaim(workerId, type, triggerResult, apiResponse) {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
 
-    return {
-        id: claimId,
-        workerId,
-        type,
-        triggerValue: triggerResult.value || null,
-        payout: triggerResult.payout,
-        date: dateStr,
-        status: specialFlags.isSpoofAttack || specialFlags.isRingFraudAttack ? 'pending_review' : 'paid',
-        description: triggerResult.details?.description || `Auto-triggered ${type} payout`,
-        ...specialFlags
-    };
+  return {
+    id: `CLM-${Date.now()}`,
+    workerId,
+    type,
+    triggerValue: triggerResult?.value || null,
+
+    payout: apiResponse?.final_payout ?? 0,
+    triggerReason: apiResponse?.trigger_reason ?? "Unknown",
+
+    fraudLevel: apiResponse?.fraud_check?.level ?? "unknown",
+    fraudScore: apiResponse?.fraud_check?.fraud_score ?? 0,
+
+    trustScore: apiResponse?.trust_score ?? 0,
+
+    date: dateStr,
+    status: apiResponse?.status ?? "pending",
+
+    description: `AI-triggered ${type} payout`
+  };
 }

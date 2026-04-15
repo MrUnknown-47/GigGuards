@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://gigguards-onrender.com/api/v1";
+const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
 
 class GigShieldAPI {
     /**
@@ -18,7 +18,7 @@ class GigShieldAPI {
 
         try {
             const response = await fetch(url, config);
-            
+
             // Allow native handling of potentially failing paths structurally
             if (!response.ok) {
                 // If a hard 404 block is raised natively, propagate the structured model upwards
@@ -74,7 +74,7 @@ class GigShieldAPI {
 
     /** GET [lat, lon, intensity] array payload representing current live map risks */
     static async getHeatmapZones() {
-        return this.request('/heatmap/risk-zones');
+        return this.request('/heatmap/city-risk');
     }
 }
 

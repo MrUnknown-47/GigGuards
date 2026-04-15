@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 
-from routes import workers, policies, claims, admin, heatmap, b2b
+from routes import workers, policies, claims, admin, heatmap, b2b, predictions
 from services.background_tasks import check_disruption_triggers_job
 from core.logger import logger
 from models.schemas import ErrorResponse
@@ -98,6 +98,7 @@ app.include_router(claims.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(heatmap.router, prefix="/api/v1")
 app.include_router(b2b.router, prefix="/api/v1")
+app.include_router(predictions.router, prefix="/api/v1")
 
 @app.get("/", tags=["system"])
 async def root():

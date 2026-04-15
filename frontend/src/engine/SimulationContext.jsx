@@ -61,12 +61,12 @@ function reducer(state, action) {
             };
 
         case 'TRIGGER_EVENT': {
-            const { type, triggerResult } = action.payload;
-            const newClaim = generateClaim(state.worker.id, type, triggerResult);
+            const { type, triggerResult, apiResponse } = action.payload;
+            const newClaim = generateClaim(state.worker.id, type, triggerResult, apiResponse);
             const updatedClaims = [newClaim, ...state.claims];
-            const fraudResult = detectFraud(updatedClaims, state.worker.id);
 
-            if (fraudResult.isFlagged && fraudResult.riskLevel === 'high') {
+            // Fraud is now handled solely via backend response!
+            if (newClaim.fraudLevel === 'high' || newClaim.fraudLevel === 'medium') {
                 newClaim.status = 'flagged';
             }
 
@@ -75,17 +75,17 @@ function reducer(state, action) {
                 type: newClaim.status === 'flagged' ? 'warning' : 'success',
                 title: newClaim.status === 'flagged'
                     ? '⚠️ Claim Under Review'
-                    : `₹${triggerResult.payout} Payout Credited!`,
-                message: triggerResult.details?.description || `${type} event detected`,
+                    : `₹${newClaim.payout} Payout Credited!`,
+                message: newClaim.triggerReason || `${type} event detected`,
                 timestamp: new Date().toLocaleTimeString(),
-                payout: triggerResult.payout,
+                payout: newClaim.payout,
             };
 
             const activityItem = {
                 id: Date.now(),
                 type: type,
-                message: triggerResult.details?.description || `${type} event triggered`,
-                payout: triggerResult.payout,
+                message: newClaim.triggerReason || `${type} event triggered`,
+                payout: newClaim.payout,
                 timestamp: new Date().toLocaleTimeString(),
                 city: state.worker.city,
                 isNew: true,
@@ -96,7 +96,7 @@ function reducer(state, action) {
                 isSimulating: false,
                 simulatingType: null,
                 claims: updatedClaims,
-                totalPayouts: state.totalPayouts + triggerResult.payout,
+                totalPayouts: state.totalPayouts + newClaim.payout,
                 notifications: [notification, ...state.notifications],
                 activityFeed: [activityItem, ...state.activityFeed].slice(0, 50),
             };
@@ -198,17 +198,32 @@ export function SimulationProvider({ children }) {
     const simulateEvent = useCallback((type) => {
         dispatch({ type: 'START_SIMULATION', payload: type });
 
-        setTimeout(() => {
-            const triggerResult = evaluateTrigger(
-                type,
-                type === 'rain' ? 78 : type === 'aqi' ? 456 : null
-            );
+        setTimeout(async () => {
+            const payload = {
+                daily_income: state.worker.dailyEarning || 1200,
+                rainfall: type === 'rain' ? 85 : 0,
+                aqi: type === 'aqi' ? 450 : 100,
+                traffic: 90
+            };
+            
+            try {
+                // NEW API CALL FLOW
+                const { data, ok } = await GigShieldAPI.triggerClaim(payload);
+                console.log("API RESPONSE:", data);
 
-            if (triggerResult.triggered) {
-                dispatch({ type: 'TRIGGER_EVENT', payload: { type, triggerResult } });
+                const triggerResult = { value: type === 'rain' ? 85 : 450 }; // Basic UI filler
+
+                if (ok) {
+                    dispatch({ 
+                        type: 'TRIGGER_EVENT', 
+                        payload: { type, triggerResult, apiResponse: data } 
+                    });
+                }
+            } catch (err) {
+                console.error("Simulation trigger failed", err);
             }
         }, 2000);
-    }, []);
+    }, [state.worker]);
 
     const dismissNotification = useCallback((id) => {
         dispatch({ type: 'DISMISS_NOTIFICATION', payload: id });

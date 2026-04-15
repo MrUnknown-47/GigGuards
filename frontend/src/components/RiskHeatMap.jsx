@@ -58,13 +58,18 @@ export default function RiskHeatMap() {
                     attribution='&copy; <a href="https://carto.com/">CARTO</a>'
                 />
                 
-                {points.map(([lat, lon, intensity], idx) => {
+                {points?.map((point, idx) => {
+                    if (!point || !point.lat || !point.lon) return null;
+                    
+                    const riskMap = { "low": 0.2, "medium": 0.5, "high": 0.8 };
+                    const intensity = riskMap[point.risk] || 0.5;
+                    
                     const colors = getRiskColor(intensity);
                     
                     return (
                         <CircleMarker
                             key={`heatmap-point-${idx}`}
-                            center={[lat, lon]}
+                            center={[point.lat, point.lon]}
                             radius={Math.max(6, intensity * 20)}
                             pathOptions={{ 
                                 fillColor: colors.fill, 
